@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- dial face -->
+    <path
+        android:fillColor="#141A22"
+        android:pathData="M54,54 m-30,0 a30,30 0 1,0 60,0 a30,30 0 1,0 -60,0" />
+    <!-- ring -->
+    <path
+        android:strokeColor="#29B6F6"
+        android:strokeWidth="2.4"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M54,54 m-25.5,0 a25.5,25.5 0 1,0 51,0 a25.5,25.5 0 1,0 -51,0" />
+    <!-- cardinal ticks -->
+    <path android:strokeColor="#E6EDF3" android:strokeWidth="3" android:pathData="M54,28.5 L54,34" />
+    <path android:strokeColor="#8B949E" android:strokeWidth="2.4" android:pathData="M54,74 L54,79.5" />
+    <path android:strokeColor="#8B949E" android:strokeWidth="2.4" android:pathData="M28.5,54 L34,54" />
+    <path android:strokeColor="#8B949E" android:strokeWidth="2.4" android:pathData="M74,54 L79.5,54" />
+    <!-- diagonal minor ticks -->
+    <path android:strokeColor="#3D4753" android:strokeWidth="2" android:pathData="M40.2,40.2 L43.4,43.4" />
+    <path android:strokeColor="#3D4753" android:strokeWidth="2" android:pathData="M67.8,40.2 L64.6,43.4" />
+    <path android:strokeColor="#3D4753" android:strokeWidth="2" android:pathData="M40.2,67.8 L43.4,64.6" />
+    <path android:strokeColor="#3D4753" android:strokeWidth="2" android:pathData="M67.8,67.8 L64.6,64.6" />
+    <!-- needle: north half (red) -->
+    <path
+        android:fillColor="#FF5252"
+        android:pathData="M54,36 L61.5,54 L46.5,54 Z" />
+    <!-- needle: south half (light) -->
+    <path
+        android:fillColor="#E6EDF3"
+        android:pathData="M54,72 L61.5,54 L46.5,54 Z" />
+    <!-- hub -->
+    <path
+        android:fillColor="#29B6F6"
+        android:pathData="M54,54 m-3.2,0 a3.2,3.2 0 1,0 6.4,0 a3.2,3.2 0 1,0 -6.4,0" />
+</vector>
