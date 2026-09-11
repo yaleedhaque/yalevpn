@@ -48,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,6 +63,7 @@ import com.yaleed.vpnresearch.ui.theme.Gold
 import com.yaleed.vpnresearch.ui.theme.SlateDim
 import com.yaleed.vpnresearch.ui.theme.Success
 import com.yaleed.vpnresearch.vpn.VpnManager
+import java.io.File
 import java.security.SecureRandom
 import java.util.Locale
 import kotlinx.coroutines.delay
@@ -105,6 +107,10 @@ private fun VpnScreen(onRequestVpnAuth: () -> Unit) {
     val authRequired by VpnManager.authRequired.collectAsState()
     val profile by VpnProfileStore.profile.collectAsState()
     var generatedPublicKey by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    var importText by remember { mutableStateOf("") }
+    var importMsg by remember { mutableStateOf<String?>(null) }
+    var importOk by remember { mutableStateOf(false) }
 
     val connected = status.state == Tunnel.State.UP
     val busy = status.state == Tunnel.State.TOGGLE
@@ -242,6 +248,53 @@ private fun VpnScreen(onRequestVpnAuth: () -> Unit) {
             placeholder = "25",
             onValueChange = { v -> VpnProfileStore.update { it.copy(persistentKeepalive = v) } },
         )
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+        Text("Import config", style = MaterialTheme.typography.titleSmall, color = SlateDim)
+        Text(
+            "Paste a wg-quick config, or push import.conf to the app's external files dir.",
+            style = MaterialTheme.typography.bodySmall,
+            color = SlateDim,
+        )
+        OutlinedTextField(
+            value = importText,
+            onValueChange = { importText = it },
+            label = { Text("wg-quick config") },
+            placeholder = { Text("[Interface]\nPrivateKey = …\nAddress = 10.0.0.2/32\nDNS = 1.1.1.1\n\n[Peer]\nPublicKey = …\nEndpoint = engage.cloudflareclient.com:2408\nAllowedIPs = 0.0.0.0/0, ::/0\nPersistentKeepalive = 25", color = SlateDim) },
+            modifier = Modifier.fillMaxWidth().height(140.dp),
+            maxLines = 8,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = {
+                    val file = File(context.getExternalFilesDir(null), "import.conf")
+                    if (!file.exists()) {
+                        importMsg = "No import.conf found in app external files dir"
+                        importOk = false
+                    } else {
+                        val r = importConfigText(file.readText())
+                        importMsg = r.message
+                        importOk = r.ok
+                    }
+                },
+            ) { Text("Import file") }
+            Button(
+                onClick = {
+                    val r = importConfigText(importText)
+                    importMsg = r.message
+                    importOk = r.ok
+                },
+                enabled = importText.isNotBlank(),
+            ) { Text("Import paste") }
+        }
+        importMsg?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (importOk) Success else MaterialTheme.colorScheme.error,
+            )
+        }
 
         Spacer(Modifier.height(8.dp))
         SignatureFooter()
@@ -511,6 +564,57 @@ private fun SignatureFooter() {
         style = MaterialTheme.typography.bodySmall,
         color = SlateDim,
     )
+}
+
+private data class ImportResult(val ok: Boolean, val message: String)
+
+private fun importConfigText(text: String): ImportResult {
+    var section = ""
+    var priv: String? = null
+    var addr: String? = null
+    var dns: String? = null
+    var peerPub: String? = null
+    var endpoint: String? = null
+    var allowed: String? = null
+    var ka: String? = null
+    for (raw in text.lines()) {
+        val line = raw.trim()
+        if (line.isEmpty() || line.startsWith("#")) continue
+        if (line.startsWith("[") && line.endsWith("]")) { section = line; continue }
+        val idx = line.indexOf('=')
+        if (idx <= 0) continue
+        val key = line.substring(0, idx).trim()
+        val value = line.substring(idx + 1).trim()
+        if (value.isEmpty()) continue
+        when (section) {
+            "[Interface]" -> when (key) {
+                "PrivateKey" -> priv = value
+                "Address" -> addr = value
+                "DNS" -> dns = value
+            }
+            "[Peer]" -> when (key) {
+                "PublicKey" -> peerPub = value
+                "Endpoint" -> endpoint = value
+                "AllowedIPs" -> allowed = value
+                "PersistentKeepalive" -> ka = value
+            }
+        }
+    }
+    if (priv == null || addr == null || peerPub == null) {
+        return ImportResult(false, "Missing required fields (PrivateKey / Address / Peer PublicKey)")
+    }
+    VpnProfileStore.update {
+        it.copy(
+            privateKey = priv,
+            address = addr,
+            dns = dns ?: "",
+            peerPublicKey = peerPub,
+            endpoint = endpoint ?: "",
+            allowedIps = allowed ?: "0.0.0.0/0, ::/0",
+            persistentKeepalive = ka ?: "",
+        )
+    }
+    return ImportResult(true, "Imported — profile fields populated")
 }
 
 private fun buildWgConfig(p: VpnProfile): String {
