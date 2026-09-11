@@ -4,36 +4,70 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- dial face -->
+
+    <!-- Shield outline (gold #D4A017) — smooth rounded shield shape -->
     <path
-        android:fillColor="#141A22"
-        android:pathData="M54,54 m-30,0 a30,30 0 1,0 60,0 a30,30 0 1,0 -60,0" />
-    <!-- ring -->
+        android:fillColor="#12162A"
+        android:strokeColor="#D4A017"
+        android:strokeWidth="3.0"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="
+            M54,33
+            C59,33 72,35 76,37.5
+            L76,37.5 C78.5,38.5 78.5,40.5 76,42
+            L73,56
+            C71,69 62.5,78.5 54,83
+            C45.5,78.5 37,69 35,56
+            L32,42 C29.5,40.5 29.5,38.5 32,37.5
+            L32,37.5 C36,35 49,33 54,33 Z" />
+
+    <!-- Shield inner glow (subtle gold ambient at top) -->
     <path
-        android:strokeColor="#29B6F6"
-        android:strokeWidth="2.4"
+        android:fillColor="#D4A017"
+        android:fillAlpha="0.07"
+        android:pathData="
+            M54,36
+            C58,36 69,37.5 73,39.5
+            C75.5,40.5 75.5,41.5 73,43
+            L68,61
+            C66,72 60,78 54,81
+            C52,79.5 50,78 48,76
+            Z" />
+
+    <!-- Checkmark (success green #2FD47D) — bold, rounded caps -->
+    <path
+        android:strokeColor="#2FD47D"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
         android:fillColor="@android:color/transparent"
-        android:pathData="M54,54 m-25.5,0 a25.5,25.5 0 1,0 51,0 a25.5,25.5 0 1,0 -51,0" />
-    <!-- cardinal ticks -->
-    <path android:strokeColor="#E6EDF3" android:strokeWidth="3" android:pathData="M54,28.5 L54,34" />
-    <path android:strokeColor="#8B949E" android:strokeWidth="2.4" android:pathData="M54,74 L54,79.5" />
-    <path android:strokeColor="#8B949E" android:strokeWidth="2.4" android:pathData="M28.5,54 L34,54" />
-    <path android:strokeColor="#8B949E" android:strokeWidth="2.4" android:pathData="M74,54 L79.5,54" />
-    <!-- diagonal minor ticks -->
-    <path android:strokeColor="#3D4753" android:strokeWidth="2" android:pathData="M40.2,40.2 L43.4,43.4" />
-    <path android:strokeColor="#3D4753" android:strokeWidth="2" android:pathData="M67.8,40.2 L64.6,43.4" />
-    <path android:strokeColor="#3D4753" android:strokeWidth="2" android:pathData="M40.2,67.8 L43.4,64.6" />
-    <path android:strokeColor="#3D4753" android:strokeWidth="2" android:pathData="M67.8,67.8 L64.6,64.6" />
-    <!-- needle: north half (red) -->
+        android:pathData="M45.5,58 L51.5,64.5 L62.5,49" />
+
+    <!-- Network node: top-left shoulder -->
     <path
-        android:fillColor="#FF5252"
-        android:pathData="M54,36 L61.5,54 L46.5,54 Z" />
-    <!-- needle: south half (light) -->
+        android:fillColor="#D4A017"
+        android:fillAlpha="0.6"
+        android:pathData="M39,44 m-2.2,0 a2.2,2.2 0 1,0 4.4,0 a2.2,2.2 0 1,0 -4.4,0" />
+
+    <!-- Network node: top-right shoulder -->
     <path
-        android:fillColor="#E6EDF3"
-        android:pathData="M54,72 L61.5,54 L46.5,54 Z" />
-    <!-- hub -->
+        android:fillColor="#D4A017"
+        android:fillAlpha="0.6"
+        android:pathData="M69,44 m-2.2,0 a2.2,2.2 0 1,0 4.4,0 a2.2,2.2 0 1,0 -4.4,0" />
+
+    <!-- Network arc connecting the two nodes (light, behind shield interior) -->
     <path
-        android:fillColor="#29B6F6"
-        android:pathData="M54,54 m-3.2,0 a3.2,3.2 0 1,0 6.4,0 a3.2,3.2 0 1,0 -6.4,0" />
+        android:strokeColor="#D4A017"
+        android:strokeWidth="1.2"
+        android:strokeAlpha="0.25"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M41.2,43.5 C46,39 62,39 66.8,43.5" />
+
+    <!-- Small wireguard-orange dot at shield bottom (connection indicator) -->
+    <path
+        android:fillColor="#FF6B35"
+        android:fillAlpha="0.8"
+        android:pathData="M54,76 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+
 </vector>

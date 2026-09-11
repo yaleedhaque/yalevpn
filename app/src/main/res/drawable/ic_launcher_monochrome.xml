@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Shield outline (monochrome: uses tint) -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="3.0"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="
+            M54,33
+            C59,33 72,35 76,37.5
+            L76,37.5 C78.5,38.5 78.5,40.5 76,42
+            L73,56
+            C71,69 62.5,78.5 54,83
+            C45.5,78.5 37,69 35,56
+            L32,42 C29.5,40.5 29.5,38.5 32,37.5
+            L32,37.5 C36,35 49,33 54,33 Z" />
+
+    <!-- Checkmark -->
+    <path
+        android:strokeColor="#000000"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M45.5,58 L51.5,64.5 L62.5,49" />
+
+    <!-- Network nodes -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M39,44 m-2.2,0 a2.2,2.2 0 1,0 4.4,0 a2.2,2.2 0 1,0 -4.4,0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M69,44 m-2.2,0 a2.2,2.2 0 1,0 4.4,0 a2.2,2.2 0 1,0 -4.4,0" />
+
+</vector>
