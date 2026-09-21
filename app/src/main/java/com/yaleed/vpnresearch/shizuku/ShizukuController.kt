@@ -65,6 +65,9 @@ object ShizukuController {
         }
     }
 
+    val isConnected: Boolean
+        get() = service != null
+
     fun start(context: Context) {
         if (Shizuku.isPreV11()) {
             _state.value = ShizukuState.Unsupported
@@ -123,6 +126,16 @@ object ShizukuController {
             s.readAndroidId()
         } catch (e: Exception) {
             "ERR ${e.message}"
+        }
+    }
+
+    /** Runs a shell snippet inside the Shizuku (shell/root uid) process. */
+    suspend fun shell(cmd: String): String {
+        val s = service ?: return "exit=-1\nERR no service"
+        return try {
+            s.run(arrayOf("/system/bin/sh", "-c", cmd))
+        } catch (e: Exception) {
+            "exit=-1\nERR ${e.message}"
         }
     }
 

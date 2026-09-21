@@ -14,8 +14,14 @@ android {
         applicationId = "com.yaleed.vpnresearch"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 3
+        versionName = "0.3.0"
+
+        // Slim native payload: arm64+arm32 cover all real devices, x86_64 keeps
+        // emulators; legacy 32-bit x86 emulators are dropped (~3 MB saved).
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
     }
 
     signingConfigs {

@@ -21,6 +21,7 @@ data class VpnProfile(
     val privateKey: String = "",
     val address: String = "",
     val dns: String = "",
+    val mtu: String = "",
     val peerPublicKey: String = "",
     val endpoint: String = "",
     val allowedIps: String = "0.0.0.0/0, ::/0",
@@ -32,6 +33,7 @@ object VpnProfileStore {
     private val K_PRIVATE = stringPreferencesKey("private_key")
     private val K_ADDRESS = stringPreferencesKey("address")
     private val K_DNS = stringPreferencesKey("dns")
+    private val K_MTU = stringPreferencesKey("mtu")
     private val K_PEER_PUB = stringPreferencesKey("peer_public_key")
     private val K_ENDPOINT = stringPreferencesKey("endpoint")
     private val K_ALLOWED = stringPreferencesKey("allowed_ips")
@@ -51,6 +53,7 @@ object VpnProfileStore {
             privateKey = p[K_PRIVATE] ?: "",
             address = p[K_ADDRESS] ?: "",
             dns = p[K_DNS] ?: "",
+            mtu = p[K_MTU] ?: "",
             peerPublicKey = p[K_PEER_PUB] ?: "",
             endpoint = p[K_ENDPOINT] ?: "",
             allowedIps = p[K_ALLOWED] ?: "0.0.0.0/0, ::/0",
@@ -85,6 +88,7 @@ object VpnProfileStore {
                 prefs[K_PRIVATE] = p.privateKey
                 prefs[K_ADDRESS] = p.address
                 prefs[K_DNS] = p.dns
+                prefs[K_MTU] = p.mtu
                 prefs[K_PEER_PUB] = p.peerPublicKey
                 prefs[K_ENDPOINT] = p.endpoint
                 prefs[K_ALLOWED] = p.allowedIps

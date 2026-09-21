@@ -15,10 +15,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Casino
+import androidx.compose.material.icons.rounded.Help
 import androidx.compose.material.icons.rounded.Power
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -57,11 +59,14 @@ import androidx.compose.ui.unit.sp
 import com.wireguard.android.backend.Tunnel
 import com.yaleed.vpnresearch.data.VpnProfile
 import com.yaleed.vpnresearch.data.VpnProfileStore
+import com.yaleed.vpnresearch.root.RootController
+import com.yaleed.vpnresearch.root.RootState
 import com.yaleed.vpnresearch.shizuku.ShizukuController
 import com.yaleed.vpnresearch.shizuku.ShizukuState
 import com.yaleed.vpnresearch.ui.theme.Gold
 import com.yaleed.vpnresearch.ui.theme.SlateDim
 import com.yaleed.vpnresearch.ui.theme.Success
+import com.yaleed.vpnresearch.util.buildWgConfig
 import com.yaleed.vpnresearch.vpn.VpnManager
 import java.io.File
 import java.security.SecureRandom
@@ -88,13 +93,27 @@ fun MainScreen(onRequestVpnAuth: () -> Unit) {
                     icon = { Icon(Icons.Rounded.Science, contentDescription = "Research Lab") },
                     label = { Text("Research Lab") },
                 )
+                NavigationBarItem(
+                    selected = tab == 2,
+                    onClick = { tab = 2 },
+                    icon = { Icon(Icons.Rounded.Terminal, contentDescription = "Root Lab") },
+                    label = { Text("Root Lab") },
+                )
+                NavigationBarItem(
+                    selected = tab == 3,
+                    onClick = { tab = 3 },
+                    icon = { Icon(Icons.Rounded.Help, contentDescription = "Help") },
+                    label = { Text("Help") },
+                )
             }
         },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when (tab) {
                 0 -> VpnScreen(onRequestVpnAuth = onRequestVpnAuth)
-                else -> ResearchScreen()
+                1 -> ResearchScreen()
+                2 -> RootLabScreen()
+                else -> HelpScreen()
             }
         }
     }
@@ -102,7 +121,6 @@ fun MainScreen(onRequestVpnAuth: () -> Unit) {
 
 @Composable
 private fun VpnScreen(onRequestVpnAuth: () -> Unit) {
-    val scope = rememberCoroutineScope()
     val status by VpnManager.status.collectAsState()
     val authRequired by VpnManager.authRequired.collectAsState()
     val profile by VpnProfileStore.profile.collectAsState()
@@ -219,6 +237,12 @@ private fun VpnScreen(onRequestVpnAuth: () -> Unit) {
             value = profile.dns,
             placeholder = "1.1.1.1",
             onValueChange = { v -> VpnProfileStore.update { it.copy(dns = v) } },
+        )
+        ProfileField(
+            label = "MTU (optional)",
+            value = profile.mtu,
+            placeholder = "1280 (WARP default) · 1420 fast",
+            onValueChange = { v -> VpnProfileStore.update { it.copy(mtu = v) } },
         )
 
         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
@@ -373,11 +397,18 @@ private fun ProfileField(
 @Composable
 private fun ResearchScreen() {
     val state by ShizukuController.state.collectAsState()
+    val rootStateLocal by RootController.state.collectAsState()
     val scope = rememberCoroutineScope()
+    val researchContext = LocalContext.current
     val log = remember { mutableStateListOf<String>() }
     var current by remember { mutableStateOf<String?>(null) }
     var original by remember { mutableStateOf<String?>(null) }
     var busyRead by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        RootController.init(researchContext)
+        if (rootStateLocal !is RootState.Ready) RootController.probe()
+    }
 
     Column(
         modifier = Modifier
@@ -509,10 +540,11 @@ private fun ResearchScreen() {
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
             Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                CapabilityRow("android_id spoof", "per-app ad id re-derives", ok = true)
+                CapabilityRow("android_id spoof", "settings provider (shell/root)", ok = true)
                 CapabilityRow("mock location", "setting + mock flag", ok = true)
-                CapabilityRow("IMEI / serial", "root-only", ok = false)
-                CapabilityRow("Wi-Fi MAC override", "needs CAP_NET_ADMIN", ok = false)
+                CapabilityRow("IMEI / serial", if (rootStateLocal is RootState.Ready) "root read (Root Lab → Device info)" else "root-only", ok = rootStateLocal is RootState.Ready)
+                CapabilityRow("Wi-Fi MAC override", if (rootStateLocal is RootState.Ready) "root read; spoof device-dependent" else "needs CAP_NET_ADMIN", ok = rootStateLocal is RootState.Ready)
+                CapabilityRow("kernel WireGuard", if (rootStateLocal is RootState.Ready) "wg-quick mode (Root Lab)" else "needs root + wg-quick", ok = rootStateLocal is RootState.Ready)
             }
         }
 
@@ -573,6 +605,7 @@ private fun importConfigText(text: String): ImportResult {
     var priv: String? = null
     var addr: String? = null
     var dns: String? = null
+    var mtu: String? = null
     var peerPub: String? = null
     var endpoint: String? = null
     var allowed: String? = null
@@ -591,6 +624,7 @@ private fun importConfigText(text: String): ImportResult {
                 "PrivateKey" -> priv = value
                 "Address" -> addr = value
                 "DNS" -> dns = value
+                "MTU" -> mtu = value
             }
             "[Peer]" -> when (key) {
                 "PublicKey" -> peerPub = value
@@ -608,6 +642,7 @@ private fun importConfigText(text: String): ImportResult {
             privateKey = priv,
             address = addr,
             dns = dns ?: "",
+            mtu = mtu ?: "",
             peerPublicKey = peerPub,
             endpoint = endpoint ?: "",
             allowedIps = allowed ?: "0.0.0.0/0, ::/0",
@@ -615,20 +650,6 @@ private fun importConfigText(text: String): ImportResult {
         )
     }
     return ImportResult(true, "Imported — profile fields populated")
-}
-
-private fun buildWgConfig(p: VpnProfile): String {
-    val lines = mutableListOf<String>()
-    lines += "[Interface]"
-    lines += "PrivateKey = ${p.privateKey.trim()}"
-    lines += "Address = ${p.address.trim()}"
-    if (p.dns.isNotBlank()) lines += "DNS = ${p.dns.trim()}"
-    lines += "[Peer]"
-    lines += "PublicKey = ${p.peerPublicKey.trim()}"
-    lines += "AllowedIPs = ${p.allowedIps.trim()}"
-    if (p.endpoint.isNotBlank()) lines += "Endpoint = ${p.endpoint.trim()}"
-    if (p.persistentKeepalive.isNotBlank()) lines += "PersistentKeepalive = ${p.persistentKeepalive.trim()}"
-    return lines.joinToString("\n")
 }
 
 private fun randomHex16(): String {

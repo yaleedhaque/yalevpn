@@ -10,6 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import com.yaleed.vpnresearch.data.VpnProfileStore
+import com.yaleed.vpnresearch.root.RootController
 import com.yaleed.vpnresearch.shizuku.ShizukuController
 import com.yaleed.vpnresearch.ui.MainScreen
 import com.yaleed.vpnresearch.ui.theme.YaleVPNTheme
@@ -29,6 +30,7 @@ class MainActivity : ComponentActivity() {
         VpnManager.init(application)
         lifecycleScope.launch { VpnProfileStore.init(application) }
         ShizukuController.start(application)
+        RootController.init(application)
 
         setContent {
             YaleVPNTheme {
