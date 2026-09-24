@@ -8,7 +8,13 @@ import android.location.LocationManager
 import com.yaleed.vpnresearch.root.RootController
 import com.yaleed.vpnresearch.root.ShellResult
 import java.util.Locale
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -43,6 +49,13 @@ object MockGpsController {
 
     @Volatile
     private var activeAccuracy = 0f
+
+    // Self-sustaining refresh: while active, re-push the fix every few seconds so the mock
+    // GPS stays the NEWEST source (fused picks freshest) and re-assert the spoof environment
+    // so the real network location can't sneak a fresher fix in between.
+    private val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var refreshJob: Job? = null
+    private var refreshContext: Context? = null
 
     val isActive: Boolean get() = active
 
@@ -85,6 +98,7 @@ object MockGpsController {
                 lm.setTestProviderEnabled(PROVIDER, true)
                 pushFix(lm, lat, lng, accuracyMeters)
                 activate(lat, lng, accuracyMeters)
+                startAutoRefresh(context)
                 status()
             } catch (e: SecurityException) {
                 logDenied()
@@ -114,6 +128,9 @@ object MockGpsController {
 
     /** Tears the test provider down — the mock fix disappears system-wide. */
     suspend fun stop(context: Context): String = withContext(Dispatchers.Main) {
+        refreshJob?.cancel()
+        refreshJob = null
+        refreshContext = null
         val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         try {
             lm.removeTestProvider(PROVIDER)
@@ -122,6 +139,43 @@ object MockGpsController {
         }
         active = false
         "Mock GPS stopped — real location restored."
+    }
+
+    /** Re-pushes the active fix every few seconds + re-asserts the spoof environment. */
+    private fun startAutoRefresh(context: Context) {
+        refreshContext = context.applicationContext
+        refreshJob = refreshScope.launch {
+            var tick = 0
+            while (isActive && active) {
+                delay(4000)
+                tick++
+                val lm = refreshContext?.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+                    ?: continue
+                try {
+                    pushFix(lm, activeLat, activeLng, activeAccuracy)
+                } catch (_: Exception) {
+                    // Provider may be mid-teardown on stop(); keep trying.
+                }
+                if (tick % 5 == 0) {
+                    // Every ~20s keep the real network source starved so the mock stays newest.
+                    val ctx = refreshContext ?: continue
+                    try {
+                        withContext(Dispatchers.IO) {
+                            RootController.runPriv(
+                                "settings put global wifi_scan_always_enabled 0; " +
+                                    "settings put secure network_location_scanning_enabled 0; " +
+                                    "settings put secure location_scanning_enabled 0; " +
+                                    "settings put secure location_providers_allowed +gps; " +
+                                    "appops set '$APP_PKG' android:mock_location allow; " +
+                                    "echo spoof-env=ok",
+                            )
+                        }
+                    } catch (_: Exception) {
+                        // Non-fatal; mock fix keeps running regardless.
+                    }
+                }
+            }
+        }
     }
 
     /** Registers the provider, replacing any leftover ghost from a killed process. */
