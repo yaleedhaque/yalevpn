@@ -62,11 +62,14 @@ object MockGpsController {
     fun current(): Triple<Double, Double, Float>? =
         if (active) Triple(activeLat, activeLng, activeAccuracy) else null
 
-    /** Grants the mock-location appop + legacy secure flag via root/shell uid. */
+    /** Grants the mock-location appop via root/shell uid.
+     *  The legacy `allow_mock_location` secure flag is deliberately set to 0: on Android 8+
+     *  the appop alone authorises injection, and a leftover `1` is a giveaway to mock-detection
+     *  libraries — leaving it off keeps the spoof undetectable-by-signal without Xposed. */
     suspend fun grant(): ShellResult = withContext(Dispatchers.IO) {
         RootController.runPriv(
             "cmd appops set '$APP_PKG' android:mock_location allow; " +
-                "settings put secure allow_mock_location 1; " +
+                "settings put secure allow_mock_location 0; " +
                 "echo appop=ok",
         )
     }

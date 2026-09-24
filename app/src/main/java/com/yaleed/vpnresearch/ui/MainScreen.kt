@@ -1,5 +1,7 @@
 package com.yaleed.vpnresearch.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +17,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Casino
+import androidx.compose.material.icons.rounded.ContentPaste
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Help
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Power
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Science
@@ -50,12 +56,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import com.yaleed.vpnresearch.ui.design.BrandMark
+import com.yaleed.vpnresearch.ui.design.DsActionButton
+import com.yaleed.vpnresearch.ui.design.DsButtonRow
+import com.yaleed.vpnresearch.ui.design.DsButtonVariant
+import com.yaleed.vpnresearch.ui.design.DsCard
+import com.yaleed.vpnresearch.ui.design.DsCardLabel
+import com.yaleed.vpnresearch.ui.design.DsPill
+import com.yaleed.vpnresearch.ui.design.DsSectionHeader
+import com.yaleed.vpnresearch.ui.design.DsStat
+import com.yaleed.vpnresearch.ui.design.DsTopBar
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yaleed.vpnresearch.ui.theme.brandAccent
 import com.wireguard.android.backend.Tunnel
 import com.yaleed.vpnresearch.data.VpnProfile
 import com.yaleed.vpnresearch.data.VpnProfileStore
@@ -64,8 +82,7 @@ import com.yaleed.vpnresearch.root.RootState
 import com.yaleed.vpnresearch.shizuku.ShizukuController
 import com.yaleed.vpnresearch.shizuku.ShizukuState
 import com.yaleed.vpnresearch.ui.theme.Gold
-import com.yaleed.vpnresearch.ui.theme.SlateDim
-import com.yaleed.vpnresearch.ui.theme.Success
+import com.yaleed.vpnresearch.ui.theme.brandAccent
 import com.yaleed.vpnresearch.util.buildWgConfig
 import com.yaleed.vpnresearch.vpn.VpnManager
 import java.io.File
@@ -75,10 +92,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun MainScreen(onRequestVpnAuth: () -> Unit) {
+fun MainScreen(
+    darkTheme: Boolean,
+    onToggleTheme: () -> Unit,
+    onRequestVpnAuth: () -> Unit,
+) {
     var tab by rememberSaveable { mutableStateOf(0) }
 
     Scaffold(
+        topBar = { DsTopBar(darkTheme = darkTheme, onToggleTheme = onToggleTheme) },
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
@@ -129,6 +151,7 @@ private fun VpnScreen(onRequestVpnAuth: () -> Unit) {
     var importText by remember { mutableStateOf("") }
     var importMsg by remember { mutableStateOf<String?>(null) }
     var importOk by remember { mutableStateOf(false) }
+    var showAdvanced by rememberSaveable { mutableStateOf(false) }
 
     val connected = status.state == Tunnel.State.UP
     val busy = status.state == Tunnel.State.TOGGLE
@@ -153,17 +176,23 @@ private fun VpnScreen(onRequestVpnAuth: () -> Unit) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text(
-            text = "YaleVPN",
-            style = MaterialTheme.typography.headlineMedium,
-            color = Gold,
-            fontFamily = FontFamily.Monospace,
-        )
-        Text(
-            text = "Real WireGuard tunnel · personal research",
-            style = MaterialTheme.typography.bodySmall,
-            color = SlateDim,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            BrandMark(size = 34.dp)
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = "YaleVPN",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = brandAccent(),
+                )
+                Text(
+                    text = "Real WireGuard tunnel · personal research",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Spacer(Modifier.height(2.dp))
 
         StatusCard(status.state, status.error, status.rxBytes, status.txBytes)
 
@@ -187,7 +216,7 @@ private fun VpnScreen(onRequestVpnAuth: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (connected) MaterialTheme.colorScheme.error else Gold,
-                contentColor = if (connected) Color.White else Color(0xFF1A1200),
+                contentColor = if (connected) MaterialTheme.colorScheme.onError else Color(0xFF201500),
             ),
         ) {
             Icon(Icons.Rounded.Power, contentDescription = null)
@@ -203,7 +232,7 @@ private fun VpnScreen(onRequestVpnAuth: () -> Unit) {
 
         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
-        Text("Interface", style = MaterialTheme.typography.titleSmall, color = SlateDim)
+        DsSectionHeader("Interface")
         ProfileField(
             label = "Private key",
             value = profile.privateKey,
@@ -221,7 +250,7 @@ private fun VpnScreen(onRequestVpnAuth: () -> Unit) {
             Text(
                 text = "Public key:  $vk",
                 style = MaterialTheme.typography.bodySmall,
-                color = Gold,
+                color = brandAccent(),
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -232,22 +261,45 @@ private fun VpnScreen(onRequestVpnAuth: () -> Unit) {
             placeholder = "10.0.0.2/32",
             onValueChange = { v -> VpnProfileStore.update { it.copy(address = v) } },
         )
-        ProfileField(
-            label = "DNS (optional)",
-            value = profile.dns,
-            placeholder = "1.1.1.1",
-            onValueChange = { v -> VpnProfileStore.update { it.copy(dns = v) } },
-        )
-        ProfileField(
-            label = "MTU (optional)",
-            value = profile.mtu,
-            placeholder = "1280 (WARP default) · 1420 fast",
-            onValueChange = { v -> VpnProfileStore.update { it.copy(mtu = v) } },
-        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showAdvanced = !showAdvanced },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Advanced settings (optional)",
+                style = MaterialTheme.typography.labelLarge,
+                color = brandAccent(),
+            )
+            Spacer(Modifier.weight(1f))
+            Icon(
+                if (showAdvanced) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                contentDescription = if (showAdvanced) "Hide advanced settings" else "Show advanced settings",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        AnimatedVisibility(visible = showAdvanced) {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                ProfileField(
+                    label = "DNS (optional)",
+                    value = profile.dns,
+                    placeholder = "1.1.1.1",
+                    onValueChange = { v -> VpnProfileStore.update { it.copy(dns = v) } },
+                )
+                ProfileField(
+                    label = "MTU (optional)",
+                    value = profile.mtu,
+                    placeholder = "1280 (WARP default) · 1420 fast",
+                    onValueChange = { v -> VpnProfileStore.update { it.copy(mtu = v) } },
+                )
+            }
+        }
 
         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
-        Text("Peer", style = MaterialTheme.typography.titleSmall, color = SlateDim)
+        DsSectionHeader("Peer")
         ProfileField(
             label = "Peer public key",
             value = profile.peerPublicKey,
@@ -275,22 +327,23 @@ private fun VpnScreen(onRequestVpnAuth: () -> Unit) {
 
         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
-        Text("Import config", style = MaterialTheme.typography.titleSmall, color = SlateDim)
+        Text("Import config", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
             "Paste a wg-quick config, or push import.conf to the app's external files dir.",
             style = MaterialTheme.typography.bodySmall,
-            color = SlateDim,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         OutlinedTextField(
             value = importText,
             onValueChange = { importText = it },
             label = { Text("wg-quick config") },
-            placeholder = { Text("[Interface]\nPrivateKey = …\nAddress = 10.0.0.2/32\nDNS = 1.1.1.1\n\n[Peer]\nPublicKey = …\nEndpoint = engage.cloudflareclient.com:2408\nAllowedIPs = 0.0.0.0/0, ::/0\nPersistentKeepalive = 25", color = SlateDim) },
+            placeholder = { Text("[Interface]\nPrivateKey = …\nAddress = 10.0.0.2/32\nDNS = 1.1.1.1\n\n[Peer]\nPublicKey = …\nEndpoint = engage.cloudflareclient.com:2408\nAllowedIPs = 0.0.0.0/0, ::/0\nPersistentKeepalive = 25", color = MaterialTheme.colorScheme.onSurfaceVariant) },
             modifier = Modifier.fillMaxWidth().height(140.dp),
             maxLines = 8,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
+        DsButtonRow {
+            DsActionButton(
+                text = "Import file",
                 onClick = {
                     val file = File(context.getExternalFilesDir(null), "import.conf")
                     if (!file.exists()) {
@@ -302,21 +355,25 @@ private fun VpnScreen(onRequestVpnAuth: () -> Unit) {
                         importOk = r.ok
                     }
                 },
-            ) { Text("Import file") }
-            Button(
+                modifier = Modifier.weight(1f), icon = Icons.Rounded.FolderOpen,
+                variant = DsButtonVariant.Primary,
+            )
+            DsActionButton(
+                text = "Import paste",
                 onClick = {
                     val r = importConfigText(importText)
                     importMsg = r.message
                     importOk = r.ok
                 },
-                enabled = importText.isNotBlank(),
-            ) { Text("Import paste") }
+                modifier = Modifier.weight(1f), icon = Icons.Rounded.ContentPaste,
+                enabled = importText.isNotBlank(), variant = DsButtonVariant.Outlined,
+            )
         }
         importMsg?.let {
             Text(
                 it,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (importOk) Success else MaterialTheme.colorScheme.error,
+                color = if (importOk) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
             )
         }
 
@@ -332,44 +389,59 @@ private fun StatusCard(
     rx: Long,
     tx: Long,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-    ) {
-        Column(Modifier.padding(16.dp).fillMaxWidth()) {
+    DsCard {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     Icons.Rounded.Shield,
                     contentDescription = null,
-                    tint = if (state == Tunnel.State.UP) Success else MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = if (state == Tunnel.State.UP) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp),
                 )
                 Spacer(Modifier.width(10.dp))
-                when (state) {
-                    Tunnel.State.UP -> Text("CONNECTED", color = Success, style = MaterialTheme.typography.titleMedium)
-                    Tunnel.State.DOWN -> Text("DISCONNECTED", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Tunnel.State.TOGGLE -> Text("CONNECTING…", color = Gold)
-                }
+                Text(
+                    when (state) {
+                        Tunnel.State.UP -> "Secured"
+                        Tunnel.State.DOWN -> "Unsecured"
+                        Tunnel.State.TOGGLE -> "Connecting"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = when (state) {
+                        Tunnel.State.UP -> MaterialTheme.colorScheme.secondary
+                        Tunnel.State.DOWN -> MaterialTheme.colorScheme.onSurface
+                        Tunnel.State.TOGGLE -> brandAccent()
+                    },
+                )
             }
-            error?.let {
-                Spacer(Modifier.height(8.dp))
-                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            }
-            if (state == Tunnel.State.UP) {
-                Spacer(Modifier.height(10.dp))
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        "↓ ${formatBytes(rx)}",
-                        modifier = Modifier.weight(1f),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontFamily = FontFamily.Monospace,
-                    )
-                    Text(
-                        "↑ ${formatBytes(tx)}",
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontFamily = FontFamily.Monospace,
-                    )
-                }
+            DsPill(
+                text = when (state) {
+                    Tunnel.State.UP -> "Tunnel up"
+                    Tunnel.State.DOWN -> "Idle"
+                    Tunnel.State.TOGGLE -> "Working…"
+                },
+                tint = when (state) {
+                    Tunnel.State.UP -> MaterialTheme.colorScheme.secondary
+                    Tunnel.State.DOWN -> MaterialTheme.colorScheme.onSurfaceVariant
+                    Tunnel.State.TOGGLE -> brandAccent()
+                },
+            )
+        }
+        error?.let {
+            Spacer(Modifier.height(10.dp))
+            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+        if (state == Tunnel.State.UP) {
+            Spacer(Modifier.height(14.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(10.dp))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                DsStat("▼ received", formatBytes(rx), modifier = Modifier.weight(1f), tint = MaterialTheme.colorScheme.secondary)
+                Spacer(Modifier.width(16.dp))
+                DsStat("▲ sent", formatBytes(tx), modifier = Modifier.weight(1f), tint = brandAccent())
             }
         }
     }
@@ -387,7 +459,7 @@ private fun ProfileField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
-        placeholder = { Text(placeholder, color = SlateDim) },
+        placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
         trailingIcon = trailing,
@@ -420,13 +492,13 @@ private fun ResearchScreen() {
         Text(
             text = "Shizuku Research Lab",
             style = MaterialTheme.typography.headlineSmall,
-            color = Gold,
+            color = brandAccent(),
             fontFamily = FontFamily.Monospace,
         )
         Text(
             text = "Capability experiments against the Android settings provider (uid shell/root).",
             style = MaterialTheme.typography.bodySmall,
-            color = SlateDim,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         Card(
@@ -436,11 +508,11 @@ private fun ResearchScreen() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     when (val s = state) {
                         is ShizukuState.Connected -> {
-                            Icon(Icons.Rounded.Shield, contentDescription = null, tint = Success)
+                            Icon(Icons.Rounded.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                             Spacer(Modifier.width(10.dp))
                             Text(
                                 "Connected · uid ${s.uid} (${if (s.uid == 0) "root" else "shell"})",
-                                color = Success,
+                                color = MaterialTheme.colorScheme.secondary,
                             )
                         }
                         ShizukuState.Connecting -> {
@@ -449,7 +521,7 @@ private fun ResearchScreen() {
                             Text("Starting service…")
                         }
                         ShizukuState.PermissionRequired -> {
-                            Text("Permission required — approve the Shizuku dialog.", color = Gold)
+                            Text("Permission required — approve the Shizuku dialog.", color = brandAccent())
                         }
                         ShizukuState.Unsupported -> {
                             Text("Shizuku not supported on this Android version.", color = MaterialTheme.colorScheme.error)
@@ -472,7 +544,8 @@ private fun ResearchScreen() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Current android_id", style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.weight(1f))
-                    Button(
+                    DsActionButton(
+                        text = if (busyRead) "Reading…" else "Read",
                         onClick = {
                             busyRead = true
                             scope.launch {
@@ -485,18 +558,17 @@ private fun ResearchScreen() {
                                 busyRead = false
                             }
                         },
+                        icon = Icons.Rounded.Visibility,
                         enabled = state is ShizukuState.Connected && !busyRead,
-                    ) {
-                        Icon(Icons.Rounded.Visibility, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(if (busyRead) "Reading…" else "Read")
-                    }
+                        variant = DsButtonVariant.Outlined,
+                    )
                 }
                 current?.let {
-                    Text(it, fontFamily = FontFamily.Monospace, color = Gold)
+                    Text(it, fontFamily = FontFamily.Monospace, color = brandAccent())
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
+                DsButtonRow {
+                    DsActionButton(
+                        text = "Spoof (random)",
                         onClick = {
                             val spoof = randomHex16()
                             log.add(0, "[write] setting $spoof")
@@ -507,14 +579,12 @@ private fun ResearchScreen() {
                                 current = nl.ifBlank { "(blank)" }
                             }
                         },
+                        modifier = Modifier.weight(1f), icon = Icons.Rounded.Casino,
                         enabled = state is ShizukuState.Connected,
-                        colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Color(0xFF1A1200)),
-                    ) {
-                        Icon(Icons.Rounded.Casino, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Spoof (random)")
-                    }
-                    Button(
+                        variant = DsButtonVariant.Primary,
+                    )
+                    DsActionButton(
+                        text = "Restore",
                         onClick = {
                             val o = original
                             log.add(0, "[restore] → $o")
@@ -525,17 +595,15 @@ private fun ResearchScreen() {
                                 current = nl.ifBlank { "(blank)" }
                             }
                         },
+                        modifier = Modifier.weight(1f), icon = Icons.Rounded.Save,
                         enabled = state is ShizukuState.Connected,
-                    ) {
-                        Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Restore")
-                    }
+                        variant = DsButtonVariant.Outlined,
+                    )
                 }
             }
         }
 
-        Text("Capability matrix", style = MaterialTheme.typography.titleSmall, color = SlateDim)
+        Text("Capability matrix", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
@@ -552,13 +620,13 @@ private fun ResearchScreen() {
             }
         }
 
-        Text("Log", style = MaterialTheme.typography.titleSmall, color = SlateDim)
+        Text("Log", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
             Column(Modifier.padding(12.dp).fillMaxWidth()) {
                 if (log.isEmpty()) {
-                    Text("No operations yet.", color = SlateDim, style = MaterialTheme.typography.bodySmall)
+                    Text("No operations yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 } else {
                     log.take(20).forEach { line ->
                         Text(
@@ -582,11 +650,11 @@ private fun ResearchScreen() {
 @Composable
 private fun CapabilityRow(label: String, detail: String, ok: Boolean) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(if (ok) "✓" else "✗", color = if (ok) Success else MaterialTheme.colorScheme.error, fontFamily = FontFamily.Monospace)
+        Text(if (ok) "✓" else "✗", color = if (ok) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error, fontFamily = FontFamily.Monospace)
         Spacer(Modifier.width(10.dp))
         Column {
             Text(label, style = MaterialTheme.typography.bodyMedium)
-            Text(detail, style = MaterialTheme.typography.bodySmall, color = SlateDim)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -598,7 +666,7 @@ private fun SignatureFooter() {
         modifier = Modifier.fillMaxWidth(),
         textAlign = TextAlign.Center,
         style = MaterialTheme.typography.bodySmall,
-        color = SlateDim,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 

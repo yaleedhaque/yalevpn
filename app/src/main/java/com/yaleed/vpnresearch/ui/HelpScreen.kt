@@ -1,7 +1,10 @@
 package com.yaleed.vpnresearch.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,19 +12,25 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.yaleed.vpnresearch.ui.theme.Gold
-import com.yaleed.vpnresearch.ui.theme.SlateDim
+import com.yaleed.vpnresearch.ui.theme.brandAccent
 
 private data class HelpSection(val title: String, val body: String, val accent: Color? = null)
 
@@ -128,7 +137,7 @@ fun HelpScreen() {
             "Unblocking every site — the honest part",
             "WARP free exits through Cloudflare datacenter IPs. It defeats ISP-level throttling, DNS blocking and IP-geolocation-based over-blocking really well — but streaming services (Netflix etc.) and sites that explicitly block datacenter IPs can still refuse it. For those you need your own WireGuard server in the target region (or a reputable commercial VPN). Also: Cloudflare's free WARP terms forbid heavy torrenting.\n"
                 + "A good combo: WARP for normal browsing + your own server for geo/Datacenter-blocked sites — both are just different Endpoint/Peer keys in this app.",
-            accent = Gold,
+            accent = brandAccent(),
         ),
         HelpSection(
             "Troubleshooting",
@@ -151,28 +160,47 @@ fun HelpScreen() {
         Text(
             text = "Help",
             style = MaterialTheme.typography.headlineMedium,
-            color = Gold,
+            color = brandAccent(),
             fontFamily = FontFamily.Monospace,
         )
         Text(
-            text = "Every feature, in plain language. Tap the tab you want to use, then follow the steps.",
+            text = "Every feature, in plain language. Tap a section to expand it.",
             style = MaterialTheme.typography.bodySmall,
-            color = SlateDim,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        sections.forEach { section ->
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Column(Modifier.padding(14.dp).fillMaxWidth()) {
-                    Text(
-                        section.title,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = section.accent ?: MaterialTheme.colorScheme.onSurface,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        section.body,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 19.sp),
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
+        val expanded = remember { mutableStateMapOf<Int, Boolean>().apply { put(0, true) } }
+        sections.forEachIndexed { i, section ->
+            val isExpanded = expanded[i] ?: false
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                Column(Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { expanded[i] = !isExpanded }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            section.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = section.accent ?: MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Icon(
+                            imageVector = if (isExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = if (isExpanded) "Collapse section" else "Expand section",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    AnimatedVisibility(visible = isExpanded) {
+                        Column(Modifier.padding(start = 14.dp, end = 14.dp, bottom = 14.dp).fillMaxWidth()) {
+                            Text(
+                                section.body,
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 19.sp),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -181,7 +209,7 @@ fun HelpScreen() {
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.bodySmall,
-            color = SlateDim,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(8.dp))
     }

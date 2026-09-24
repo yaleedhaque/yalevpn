@@ -5,69 +5,85 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Shield outline (gold #D4A017) — smooth rounded shield shape -->
+    <!-- Shield body (deep navy base) -->
     <path
-        android:fillColor="#12162A"
-        android:strokeColor="#D4A017"
+        android:fillColor="#14203C"
+        android:pathData="
+            M54,30
+            C59,30 72,32 76,34.5
+            L76,34.5 C79,36 79,38 76.5,39.5
+            L73,56
+            C71,70 62.5,79.5 54,84
+            C45.5,79.5 37,70 35,56
+            L31.5,39.5 C29,38 29,36 32,34.5
+            L32,34.5 C36,32 49,30 54,30 Z" />
+
+    <!-- Shield upper sheen (premium depth: lighter navy fade) -->
+    <path
+        android:fillColor="#1B2A4C"
+        android:fillAlpha="0.65"
+        android:pathData="
+            M54,30
+            C59,30 72,32 76,34.5
+            C79,36 79,38 76.5,39.5
+            L73,56
+            C71,70 62.5,79.5 54,84
+            L54,30 Z" />
+
+    <!-- Gold shield outline -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#E7B64F"
         android:strokeWidth="3.0"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:pathData="
-            M54,33
-            C59,33 72,35 76,37.5
-            L76,37.5 C78.5,38.5 78.5,40.5 76,42
+            M54,30
+            C59,30 72,32 76,34.5
+            L76,34.5 C79,36 79,38 76.5,39.5
             L73,56
-            C71,69 62.5,78.5 54,83
-            C45.5,78.5 37,69 35,56
-            L32,42 C29.5,40.5 29.5,38.5 32,37.5
-            L32,37.5 C36,35 49,33 54,33 Z" />
+            C71,70 62.5,79.5 54,84
+            C45.5,79.5 37,70 35,56
+            L31.5,39.5 C29,38 29,36 32,34.5
+            L32,34.5 C36,32 49,30 54,30 Z" />
 
-    <!-- Shield inner glow (subtle gold ambient at top) -->
+    <!-- Gold "Y / tunnel" mark (VPN tunnel + Yale initial) -->
     <path
-        android:fillColor="#D4A017"
-        android:fillAlpha="0.07"
-        android:pathData="
-            M54,36
-            C58,36 69,37.5 73,39.5
-            C75.5,40.5 75.5,41.5 73,43
-            L68,61
-            C66,72 60,78 54,81
-            C52,79.5 50,78 48,76
-            Z" />
-
-    <!-- Checkmark (success green #2FD47D) — bold, rounded caps -->
-    <path
-        android:strokeColor="#2FD47D"
-        android:strokeWidth="4.5"
+        android:strokeColor="#E7B64F"
+        android:strokeWidth="4.2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:fillColor="@android:color/transparent"
-        android:pathData="M45.5,58 L51.5,64.5 L62.5,49" />
+        android:pathData="
+            M43,45 L54,57 L65,45
+            M54,57 L54,72" />
 
-    <!-- Network node: top-left shoulder -->
+    <!-- Green connection core at the node (secure link) -->
     <path
-        android:fillColor="#D4A017"
-        android:fillAlpha="0.6"
-        android:pathData="M39,44 m-2.2,0 a2.2,2.2 0 1,0 4.4,0 a2.2,2.2 0 1,0 -4.4,0" />
-
-    <!-- Network node: top-right shoulder -->
-    <path
-        android:fillColor="#D4A017"
-        android:fillAlpha="0.6"
-        android:pathData="M69,44 m-2.2,0 a2.2,2.2 0 1,0 4.4,0 a2.2,2.2 0 1,0 -4.4,0" />
-
-    <!-- Network arc connecting the two nodes (light, behind shield interior) -->
-    <path
-        android:strokeColor="#D4A017"
-        android:strokeWidth="1.2"
-        android:strokeAlpha="0.25"
+        android:strokeColor="#2FD47D"
+        android:strokeWidth="4.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
         android:fillColor="@android:color/transparent"
-        android:pathData="M41.2,43.5 C46,39 62,39 66.8,43.5" />
+        android:pathData="
+            M50,71 L53,74.5 L58,67.5" />
 
-    <!-- Small wireguard-orange dot at shield bottom (connection indicator) -->
+    <!-- Network nodes (top-left / top-right shoulders) -->
     <path
-        android:fillColor="#FF6B35"
-        android:fillAlpha="0.8"
-        android:pathData="M54,76 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+        android:fillColor="#E7B64F"
+        android:fillAlpha="0.75"
+        android:pathData="M39,41 m-2.0,0 a2.0,2.0 0 1,0 4.0,0 a2.0,2.0 0 1,0 -4.0,0" />
+    <path
+        android:fillColor="#E7B64F"
+        android:fillAlpha="0.75"
+        android:pathData="M69,41 m-2.0,0 a2.0,2.0 0 1,0 4.0,0 a2.0,2.0 0 1,0 -4.0,0" />
+
+    <!-- Network arc across the shoulders (subtle, gold) -->
+    <path
+        android:strokeColor="#E7B64F"
+        android:strokeWidth="1.1"
+        android:strokeAlpha="0.35"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M41.5,40.5 C46,36.5 62,36.5 66.5,40.5" />
 
 </vector>

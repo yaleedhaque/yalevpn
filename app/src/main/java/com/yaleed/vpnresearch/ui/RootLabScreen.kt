@@ -29,9 +29,9 @@ import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.ToggleOff
+import androidx.compose.material.icons.rounded.ToggleOn
 import androidx.compose.material.icons.rounded.Visibility
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,6 +41,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import androidx.compose.foundation.clickable
+import com.yaleed.vpnresearch.root.AnonymityController
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,9 +68,11 @@ import com.yaleed.vpnresearch.root.RootController
 import com.yaleed.vpnresearch.root.RootState
 import com.yaleed.vpnresearch.shizuku.ShizukuController
 import com.yaleed.vpnresearch.shizuku.ShizukuState
-import com.yaleed.vpnresearch.ui.theme.Gold
-import com.yaleed.vpnresearch.ui.theme.SlateDim
-import com.yaleed.vpnresearch.ui.theme.Success
+import com.yaleed.vpnresearch.ui.design.DsActionButton
+import com.yaleed.vpnresearch.ui.design.DsButtonRow
+import com.yaleed.vpnresearch.ui.design.DsButtonVariant
+import com.yaleed.vpnresearch.ui.design.DsSectionHeader
+import com.yaleed.vpnresearch.ui.theme.brandAccent
 import com.yaleed.vpnresearch.util.buildWgConfig
 import com.yaleed.vpnresearch.vpn.VpnManager
 import java.io.File
@@ -107,6 +111,11 @@ fun RootLabScreen() {
     var fwKillSwitch by remember { mutableStateOf(false) }
     var fwBlockLan by remember { mutableStateOf(false) }
     var fwBlockPing by remember { mutableStateOf(false) }
+
+    // Stealth / anonymity toggles
+    var dnsLockArm by remember { mutableStateOf(false) }
+    var leakBlockArm by remember { mutableStateOf(false) }
+    var stealthAppInput by remember { mutableStateOf("") }
 
     // Spoof state
     var currentAndroidId by remember { mutableStateOf<String?>(null) }
@@ -196,13 +205,13 @@ fun RootLabScreen() {
         Text(
             text = "Root Lab",
             style = MaterialTheme.typography.headlineMedium,
-            color = Gold,
+            color = brandAccent(),
             fontFamily = FontFamily.Monospace,
         )
         Text(
             text = "Privileged tunnelling, firewall & device spoofing — runs through su (Magisk / KernelSU) with a Shizuku fallback.",
             style = MaterialTheme.typography.bodySmall,
-            color = SlateDim,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         RootStatusCard(rootState, shizukuState, onRecheck = { RootController.probe() })
@@ -211,10 +220,11 @@ fun RootLabScreen() {
             Text(
                 it,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (bannerOk) Success else MaterialTheme.colorScheme.error,
+                color = if (bannerOk) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
             )
         }
 
+        DsSectionHeader("Tunnelling")
         KernelWgCard(
             wgAvailable = wgQuickAvailable,
             connected = tunnelUp,
@@ -256,6 +266,7 @@ fun RootLabScreen() {
             },
         )
 
+DsSectionHeader("Network control")
         FirewallCard(
             kill = fwKillSwitch,
             lan = fwBlockLan,
@@ -334,6 +345,46 @@ fun RootLabScreen() {
             },
         )
 
+DsSectionHeader("Anonymity")
+        StealthCard(
+            dnsLock = dnsLockArm,
+            leakBlock = leakBlockArm,
+            onDnsLock = { dnsLockArm = it },
+            onLeakBlock = { leakBlockArm = it },
+            bypassInput = stealthAppInput,
+            onBypassInput = { stealthAppInput = it },
+            onArm = {
+                banner = null
+                scope.launch {
+                    val pkgs = stealthAppInput.split(',')
+                        .map { it.trim() }.filter { it.isNotEmpty() }
+                    val r1 = AnonymityController.armDnsLock(dnsLockArm)
+                    val r2 = AnonymityController.armLeakBlock(leakBlockArm)
+                    val r3 = AnonymityController.armBypassPackages(pkgs, pkgs.isNotEmpty())
+                    pushResult("dns-lock", r1)
+                    pushResult("leak-block", r2)
+                    pushResult("bypass", r3)
+                    banner = "Stealth armed (dns=$dnsLockArm leak=$leakBlockArm apps=${pkgs.size})."
+                    bannerOk = r1.ok && r2.ok && (pkgs.isEmpty() || r3.ok)
+                }
+            },
+            onClear = {
+                banner = null
+                scope.launch {
+                    val r = AnonymityController.clearAll()
+                    pushResult("stealth clear", r)
+                    dnsLockArm = false
+                    leakBlockArm = false
+                    stealthAppInput = ""
+                    banner = "Stealth cleared — normal routing restored."
+                    bannerOk = r.ok
+                }
+            },
+            onStatus = {
+                scope.launch { pushResult("stealth status", AnonymityController.status()) }
+            },
+        )
+
         SpoofCard(
             resetprop = resetpropAvailable,
             androidId = currentAndroidId,
@@ -402,6 +453,7 @@ fun RootLabScreen() {
             },
         )
 
+DsSectionHeader("Location")
         MockGpsCard(
             active = mockActive,
             status = mockStatus,
@@ -463,6 +515,7 @@ fun RootLabScreen() {
             },
         )
 
+        DsSectionHeader("Device")
         DeviceInfoCard(info = deviceInfo, onFetch = {
             scope.launch {
                 val r = RootController.runPriv(DEVICE_INFO_SCRIPT)
@@ -508,11 +561,11 @@ private fun RootStatusCard(
         ) {
             when (val w = root) {
                 is RootState.Ready -> {
-                    Icon(Icons.Rounded.Security, contentDescription = null, tint = Success)
+                    Icon(Icons.Rounded.Security, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("ROOT · uid ${w.uid}", color = Success, style = MaterialTheme.typography.titleSmall)
-                        Text(w.suPath, style = MaterialTheme.typography.bodySmall, color = SlateDim)
+                        Text("ROOT · uid ${w.uid}", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.titleSmall)
+                        Text(w.suPath, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 RootState.Checking -> {
@@ -530,7 +583,7 @@ private fun RootStatusCard(
                                 "Shizuku available — privileged commands will fall back to shell uid."
                             } else "Install Magisk/KernelSU and grant this app root access.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = SlateDim,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -557,7 +610,7 @@ private fun KernelWgCard(
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Speed, contentDescription = null, tint = Gold)
+                Icon(Icons.Rounded.Speed, contentDescription = null, tint = brandAccent())
                 Spacer(Modifier.width(10.dp))
                 Column {
                     Text("Kernel WireGuard (wg-quick)", style = MaterialTheme.typography.titleSmall)
@@ -565,7 +618,7 @@ private fun KernelWgCard(
                         if (wgAvailable) "wg + wg-quick found on device."
                         else "wg / wg-quick not installed — install via Magisk module (e.g. MagiskWireguard) to enable.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = SlateDim,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -573,24 +626,83 @@ private fun KernelWgCard(
                 Text(
                     "The app VPN (userspace) is still up. Disconnect it on the VPN tab first, or the two tunnels will both claim tun0.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Gold,
+                    color = brandAccent(),
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = onUp,
-                    enabled = wgAvailable && !connected,
-                    colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Color(0xFF1A1200)),
-                ) {
-                    Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Kernel up")
-                }
-                Button(onClick = onDown, enabled = wgAvailable) {
-                    Icon(Icons.Rounded.Stop, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Kernel down")
-                }
+            DsButtonRow {
+                DsActionButton(
+                    text = "Kernel up", onClick = onUp,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.PlayArrow,
+                    enabled = wgAvailable && !connected, variant = DsButtonVariant.Primary,
+                )
+                DsActionButton(
+                    text = "Kernel down", onClick = onDown,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.Stop,
+                    enabled = wgAvailable, variant = DsButtonVariant.Outlined,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StealthCard(
+    dnsLock: Boolean,
+    leakBlock: Boolean,
+    onDnsLock: (Boolean) -> Unit,
+    onLeakBlock: (Boolean) -> Unit,
+    bypassInput: String,
+    onBypassInput: (String) -> Unit,
+    onArm: () -> Unit,
+    onClear: () -> Unit,
+    onStatus: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+    ) {
+        Column(Modifier.padding(16.dp).fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Visibility, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(10.dp))
+                Text("Anonymity · stealth", style = MaterialTheme.typography.titleSmall)
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Force DNS through the tunnel, kill location leaks, and keep chosen apps outside the tunnel.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(12.dp))
+            ToggleRow("DNS lock", "Force every DNS query to 1.1.1.1 (no resolver leak).", dnsLock, onDnsLock)
+            ToggleRow("Leak block", "Drop mDNS/LLMNR/SSDP + IPv6-off (no v6 leak).", leakBlock, onLeakBlock)
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = bypassInput,
+                onValueChange = onBypassInput,
+                label = { Text("Apps outside tunnel (comma-separated, e.g. com.whatsapp, com.google.android.apps.maps)") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+                maxLines = 4,
+            )
+            Spacer(Modifier.height(12.dp))
+            DsButtonRow {
+                DsActionButton(
+                    text = "Arm stealth", onClick = onArm,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.Security,
+                    variant = DsButtonVariant.Primary,
+                )
+                DsActionButton(
+                    text = "Clear", onClick = onClear,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.DeleteSweep,
+                    variant = DsButtonVariant.Outlined,
+                )
+                DsActionButton(
+                    text = "Status", onClick = onStatus,
+                    modifier = Modifier.weight(1f), icon = Icons.AutoMirrored.Rounded.FormatListBulleted,
+                    variant = DsButtonVariant.Tonal,
+                )
             }
         }
     }
@@ -612,7 +724,7 @@ private fun FirewallCard(
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Security, contentDescription = null, tint = Gold)
+                Icon(Icons.Rounded.Security, contentDescription = null, tint = brandAccent())
                 Spacer(Modifier.width(10.dp))
                 Text("Firewall · iptables chain YALEVPN", style = MaterialTheme.typography.titleSmall)
             }
@@ -623,28 +735,25 @@ private fun FirewallCard(
                 Text(
                     "VPN is not connected — combining with the kill switch will cut all new network traffic until you connect a tunnel or Disable the firewall.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (kill) Gold else SlateDim,
+                    color = if (kill) brandAccent() else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = onApply,
-                    colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Color(0xFF1A1200)),
-                ) {
-                    Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Apply rules")
-                }
-                Button(onClick = onDisable, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = Color.White)) {
-                    Icon(Icons.Rounded.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Disable firewall")
-                }
-                Button(onClick = onShow) {
-                    Icon(Icons.AutoMirrored.Rounded.FormatListBulleted, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Rules")
-                }
+            DsButtonRow {
+                DsActionButton(
+                    text = "Apply rules", onClick = onApply,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.Check,
+                    variant = DsButtonVariant.Primary,
+                )
+                DsActionButton(
+                    text = "Disable firewall", onClick = onDisable,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.DeleteSweep,
+                    variant = DsButtonVariant.Error,
+                )
+                DsActionButton(
+                    text = "Rules", onClick = onShow,
+                    modifier = Modifier.weight(1f), icon = Icons.AutoMirrored.Rounded.FormatListBulleted,
+                    variant = DsButtonVariant.Outlined,
+                )
             }
         }
     }
@@ -660,27 +769,31 @@ private fun Ipv6Card(
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Lan, contentDescription = null, tint = Gold)
+                Icon(Icons.Rounded.Lan, contentDescription = null, tint = brandAccent())
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text("IPv6", style = MaterialTheme.typography.titleSmall)
                     Text(
                         if (disabled) "IPv6 is DISABLED system-wide." else "IPv6 is on.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (disabled) Success else SlateDim,
+                        color = if (disabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 IconButton(onClick = onRefresh) {
                     Icon(Icons.Rounded.Refresh, contentDescription = "Refresh")
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = onDisable,
-                    enabled = !disabled,
-                    colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Color(0xFF1A1200)),
-                ) { Text("Disable IPv6") }
-                Button(onClick = onEnable, enabled = disabled) { Text("Enable IPv6") }
+            DsButtonRow {
+                DsActionButton(
+                    text = "Disable IPv6", onClick = onDisable,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.ToggleOff,
+                    enabled = !disabled, variant = DsButtonVariant.Primary,
+                )
+                DsActionButton(
+                    text = "Enable IPv6", onClick = onEnable,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.ToggleOn,
+                    enabled = disabled, variant = DsButtonVariant.Outlined,
+                )
             }
         }
     }
@@ -703,7 +816,7 @@ private fun SpoofCard(
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = Gold)
+                Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = brandAccent())
                 Spacer(Modifier.width(10.dp))
                 Text("Spoofing", style = MaterialTheme.typography.titleSmall)
             }
@@ -711,29 +824,25 @@ private fun SpoofCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("android_id", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.weight(1f))
-                Button(onClick = onReadAndroidId) {
-                    Icon(Icons.Rounded.Visibility, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Read")
-                }
+                DsActionButton(
+                    text = "Read", onClick = onReadAndroidId,
+                    icon = Icons.Rounded.Visibility, variant = DsButtonVariant.Outlined,
+                )
             }
             androidId?.let {
-                Text(it, fontFamily = FontFamily.Monospace, color = Gold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(it, fontFamily = FontFamily.Monospace, color = brandAccent(), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = onSpoofAndroidId,
-                    colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Color(0xFF1A1200)),
-                ) {
-                    Icon(Icons.Rounded.Casino, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Spoof (random)")
-                }
-                Button(onClick = onRestoreAndroidId) {
-                    Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Restore")
-                }
+            DsButtonRow {
+                DsActionButton(
+                    text = "Spoof (random)", onClick = onSpoofAndroidId,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.Casino,
+                    variant = DsButtonVariant.Primary,
+                )
+                DsActionButton(
+                    text = "Restore", onClick = onRestoreAndroidId,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.Save,
+                    variant = DsButtonVariant.Outlined,
+                )
             }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
@@ -741,11 +850,10 @@ private fun SpoofCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Device model (resetprop)", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.weight(1f))
-                Button(onClick = onReadModel) {
-                    Icon(Icons.Rounded.Visibility, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Read")
-                }
+                DsActionButton(
+                    text = "Read", onClick = onReadModel,
+                    icon = Icons.Rounded.Visibility, variant = DsButtonVariant.Outlined,
+                )
             }
             if (!resetprop) {
                 Text(
@@ -755,27 +863,27 @@ private fun SpoofCard(
                 )
             }
             model?.let {
-                Text("current: $it", fontFamily = FontFamily.Monospace, color = Gold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("current: $it", fontFamily = FontFamily.Monospace, color = brandAccent(), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             OutlinedTextField(
                 value = modelInput,
                 onValueChange = onModelInput,
                 label = { Text("Spoofed model") },
-                placeholder = { Text("e.g. Pixel 7 Pro", color = SlateDim) },
+                placeholder = { Text("e.g. Pixel 7 Pro", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = onSpoofModel,
-                    enabled = resetprop,
-                    colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Color(0xFF1A1200)),
-                ) {
-                    Icon(Icons.Rounded.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Spoof model")
-                }
-                Button(onClick = onRestoreModel, enabled = resetprop) { Text("Restore (delete)") }
+            DsButtonRow {
+                DsActionButton(
+                    text = "Spoof model", onClick = onSpoofModel,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.AutoAwesome,
+                    enabled = resetprop, variant = DsButtonVariant.Primary,
+                )
+                DsActionButton(
+                    text = "Restore (delete)", onClick = onRestoreModel,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.DeleteSweep,
+                    enabled = resetprop, variant = DsButtonVariant.Outlined,
+                )
             }
         }
     }
@@ -802,14 +910,14 @@ private fun MockGpsCard(
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Place, contentDescription = null, tint = Gold)
+                Icon(Icons.Rounded.Place, contentDescription = null, tint = brandAccent())
                 Spacer(Modifier.width(10.dp))
                 Column {
                     Text("Mock GPS", style = MaterialTheme.typography.titleSmall)
                     Text(
                         "Spoof your location to custom coordinates — any app reading gps sees the fix.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = SlateDim,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -827,7 +935,7 @@ private fun MockGpsCard(
                     value = latInput,
                     onValueChange = onLatInput,
                     label = { Text("Latitude") },
-                    placeholder = { Text("23.8103", color = SlateDim) },
+                    placeholder = { Text("23.8103", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                 )
@@ -835,7 +943,7 @@ private fun MockGpsCard(
                     value = lngInput,
                     onValueChange = onLngInput,
                     label = { Text("Longitude") },
-                    placeholder = { Text("90.4125", color = SlateDim) },
+                    placeholder = { Text("90.4125", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                 )
@@ -844,41 +952,49 @@ private fun MockGpsCard(
                 value = accInput,
                 onValueChange = onAccInput,
                 label = { Text("Accuracy (m)") },
-                placeholder = { Text("10", color = SlateDim) },
+                placeholder = { Text("10", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
 
             status?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = if (active) Success else Gold)
+                Text(it, style = MaterialTheme.typography.bodySmall, color = if (active) MaterialTheme.colorScheme.secondary else brandAccent())
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = onStart,
-                    enabled = !active,
-                    colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Color(0xFF1A1200)),
-                ) {
-                    Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Start spoof")
-                }
-                Button(onClick = onUpdate, enabled = active) {
-                    Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Update")
-                }
-                Button(onClick = onStop, enabled = active) {
-                    Icon(Icons.Rounded.Stop, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Stop")
-                }
+            DsButtonRow {
+                DsActionButton(
+                    text = "Start spoof", onClick = onStart,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.PlayArrow,
+                    enabled = !active, variant = DsButtonVariant.Primary,
+                )
+                DsActionButton(
+                    text = "Update", onClick = onUpdate,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.Refresh,
+                    enabled = active, variant = DsButtonVariant.Outlined,
+                )
+                DsActionButton(
+                    text = "Stop", onClick = onStop,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.Stop,
+                    enabled = active, variant = DsButtonVariant.Error,
+                )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onGrantLocation, enabled = !locationGranted) { Text("Grant location") }
-                Button(onClick = onGrant) { Text("Grant appop") }
-                Button(onClick = onCheck) { Text("Check") }
+            DsButtonRow {
+                DsActionButton(
+                    text = "Grant location", onClick = onGrantLocation,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.Place,
+                    enabled = !locationGranted, variant = DsButtonVariant.Outlined,
+                )
+                DsActionButton(
+                    text = "Grant appop", onClick = onGrant,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.Security,
+                    variant = DsButtonVariant.Primary,
+                )
+                DsActionButton(
+                    text = "Check", onClick = onCheck,
+                    modifier = Modifier.weight(1f), icon = Icons.Rounded.Check,
+                    variant = DsButtonVariant.Outlined,
+                )
             }
         }
     }
@@ -889,11 +1005,14 @@ private fun DeviceInfoCard(info: String?, onFetch: () -> Unit) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Info, contentDescription = null, tint = Gold)
+                Icon(Icons.Rounded.Info, contentDescription = null, tint = brandAccent())
                 Spacer(Modifier.width(10.dp))
                 Text("Root-only device info", style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.weight(1f))
-                Button(onClick = onFetch) { Text("Fetch") }
+                DsActionButton(
+                    text = "Fetch", onClick = onFetch,
+                    icon = Icons.Rounded.Refresh, variant = DsButtonVariant.Primary,
+                )
             }
             info?.let {
                 Text(it, fontSize = 12.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface)
@@ -911,7 +1030,7 @@ private fun RootConsoleCard(
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Code, contentDescription = null, tint = Gold)
+                Icon(Icons.Rounded.Code, contentDescription = null, tint = brandAccent())
                 Spacer(Modifier.width(10.dp))
                 Text("Root console", style = MaterialTheme.typography.titleSmall)
             }
@@ -919,15 +1038,15 @@ private fun RootConsoleCard(
                 value = input,
                 onValueChange = onInput,
                 label = { Text("shell command") },
-                placeholder = { Text("id · ip addr · getprop …", color = SlateDim) },
+                placeholder = { Text("id · ip addr · getprop …", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
-            Button(
-                onClick = onRun,
-                enabled = input.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Color(0xFF1A1200)),
-            ) { Text("Run as root") }
+            DsActionButton(
+                text = "Run as root", onClick = onRun,
+                modifier = Modifier.fillMaxWidth(), icon = Icons.Rounded.Code,
+                enabled = input.isNotBlank(), variant = DsButtonVariant.Primary,
+            )
         }
     }
 }
@@ -937,7 +1056,7 @@ private fun RootLogCard(log: List<String>) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.padding(12.dp).fillMaxWidth()) {
             if (log.isEmpty()) {
-                Text("No operations yet.", color = SlateDim, style = MaterialTheme.typography.bodySmall)
+                Text("No operations yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             } else {
                 log.take(24).forEach { line ->
                     Text(
@@ -956,12 +1075,17 @@ private fun RootLogCard(log: List<String>) {
 
 @Composable
 private fun ToggleRow(label: String, detail: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable { onChange(!checked) },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Switch(checked = checked, onCheckedChange = onChange)
         Spacer(Modifier.width(10.dp))
         Column {
             Text(label, style = MaterialTheme.typography.bodyMedium)
-            Text(detail, style = MaterialTheme.typography.bodySmall, color = SlateDim)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -973,7 +1097,7 @@ private fun SignatureFooter() {
         modifier = Modifier.fillMaxWidth(),
         textAlign = TextAlign.Center,
         style = MaterialTheme.typography.bodySmall,
-        color = SlateDim,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 

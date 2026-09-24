@@ -13,30 +13,23 @@
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:pathData="
-            M54,33
-            C59,33 72,35 76,37.5
-            L76,37.5 C78.5,38.5 78.5,40.5 76,42
+            M54,30
+            C59,30 72,32 76,34.5
+            L76,34.5 C79,36 79,38 76.5,39.5
             L73,56
-            C71,69 62.5,78.5 54,83
-            C45.5,78.5 37,69 35,56
-            L32,42 C29.5,40.5 29.5,38.5 32,37.5
-            L32,37.5 C36,35 49,33 54,33 Z" />
+            C71,70 62.5,79.5 54,84
+            C45.5,79.5 37,70 35,56
+            L31.5,39.5 C29,38 29,36 32,34.5
+            L32,34.5 C36,32 49,30 54,30 Z" />
 
-    <!-- Checkmark -->
+    <!-- Monochrome "Y / tunnel" mark -->
     <path
         android:strokeColor="#000000"
-        android:strokeWidth="4.5"
+        android:strokeWidth="4.2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:fillColor="@android:color/transparent"
-        android:pathData="M45.5,58 L51.5,64.5 L62.5,49" />
-
-    <!-- Network nodes -->
-    <path
-        android:fillColor="#000000"
-        android:pathData="M39,44 m-2.2,0 a2.2,2.2 0 1,0 4.4,0 a2.2,2.2 0 1,0 -4.4,0" />
-    <path
-        android:fillColor="#000000"
-        android:pathData="M69,44 m-2.2,0 a2.2,2.2 0 1,0 4.4,0 a2.2,2.2 0 1,0 -4.4,0" />
-
+        android:pathData="
+            M43,45 L54,57 L65,45
+            M54,57 L54,72" />
 </vector>
