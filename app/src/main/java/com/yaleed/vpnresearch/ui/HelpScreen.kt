@@ -97,6 +97,14 @@ fun HelpScreen() {
                 + "Device model — Magisk's resetprop rewrites build props live (ro.product.model etc.). If the resetprop row is missing, you're on KernelSU/APatch (no Magisk). Type a fake model (e.g. Pixel 7 Pro), tap Spoof model; Restore (delete) reverts to the real build values.",
         ),
         HelpSection(
+            "Root Lab — Mock GPS",
+            "Spoof your location to any coordinates — apps that read the GPS provider see the fake fix (Google's 'fused' provider is not spoofable, but gps-only apps and games are).\n"
+                + "1. Type latitude / longitude / accuracy (Dhaka defaults; lat ±90, lng ±180).\n"
+                + "2. Grant location (standard Android permission dialog).\n"
+                + "3. Tap Start spoof. The app auto-grants the mock-location appop through root/Shizuku — no Developer-options selection needed on Android 8.1+.\n"
+                + "4. Update re-pushes new coordinates live; Stop removes the provider and the real location returns. Grant appop / Check verifies the appop state.",
+        ),
+        HelpSection(
             "Root Lab — Device info",
             "Fetch shows root-only identifiers plain apps can't read: real serial numbers, android_id, Wi-Fi MACs (no location permission needed), IMEI (best-effort), SIM operator, kernel, SELinux. Handy for the research-lab matrix.",
         ),

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.FormatListBulleted
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Lan
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Security
@@ -97,6 +98,11 @@ fun RootLabScreen() {
     var bannerOk by remember { mutableStateOf(false) }
     val log = remember { mutableStateListOf<String>() }
 
+    fun pushResult(tag: String, r: com.yaleed.vpnresearch.root.ShellResult) {
+        log.add(0, "[$tag] exit=${r.exit}")
+        r.text.take(800).split('\n').filter { it.isNotBlank() }.forEach { log.add(0, "  $it") }
+    }
+
     // Firewall toggles
     var fwKillSwitch by remember { mutableStateOf(false) }
     var fwBlockLan by remember { mutableStateOf(false) }
@@ -110,9 +116,53 @@ fun RootLabScreen() {
     var deviceInfo by remember { mutableStateOf<String?>(null) }
     var consoleInput by remember { mutableStateOf("") }
 
-    fun pushResult(tag: String, r: com.yaleed.vpnresearch.root.ShellResult) {
-        log.add(0, "[$tag] exit=${r.exit}")
-        r.text.take(800).split('\n').filter { it.isNotBlank() }.forEach { log.add(0, "  $it") }
+    // Mock GPS state
+    var mockActive by remember { mutableStateOf(com.yaleed.vpnresearch.loc.MockGpsController.isActive) }
+    var mockStatus by remember { mutableStateOf<String?>(null) }
+    var mockLatInput by remember { mutableStateOf("23.8103") }
+    var mockLngInput by remember { mutableStateOf("90.4125") }
+    var mockAccInput by remember { mutableStateOf("10") }
+    var locationGranted by remember {
+        mutableStateOf(
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED,
+        )
+    }
+
+    fun parseMockInputs(): Triple<Double, Double, Float>? {
+        val lat = mockLatInput.trim().toDoubleOrNull() ?: return null
+        val lng = mockLngInput.trim().toDoubleOrNull() ?: return null
+        val acc = mockAccInput.trim().toFloatOrNull() ?: 5f
+        if (lat !in -90.0..90.0 || lng !in -180.0..180.0) return null
+        return Triple(lat, lng, acc)
+    }
+
+    fun runMockStart() {
+        val t = parseMockInputs() ?: run {
+            mockStatus = "Invalid coordinates — lat ±90, lng ±180."
+            return
+        }
+        banner = null
+        scope.launch {
+            log.add(0, "[mock gps] granting appop")
+            val g = com.yaleed.vpnresearch.loc.MockGpsController.grant()
+            pushResult("mock grant", g)
+            if (!g.ok) log.add(0, "[mock gps] appop grant failed — need Developer options mock-location app?")
+            val r = com.yaleed.vpnresearch.loc.MockGpsController.start(context, t.first, t.second, t.third)
+            log.add(0, "[mock gps] start → $r")
+            mockStatus = r
+            mockActive = com.yaleed.vpnresearch.loc.MockGpsController.isActive
+        }
+    }
+
+    val mockPermLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions(),
+    ) { result ->
+        locationGranted = result[android.Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            result[android.Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (locationGranted) runMockStart()
     }
 
     LaunchedEffect(Unit) {
@@ -348,6 +398,67 @@ fun RootLabScreen() {
                     pushResult("resetprop restore", r)
                     currentModel = RootController.readProp("ro.product.model")
                     banner = "Model props reset to build defaults."; bannerOk = r.ok
+                }
+            },
+        )
+
+        MockGpsCard(
+            active = mockActive,
+            status = mockStatus,
+            latInput = mockLatInput,
+            onLatInput = { mockLatInput = it },
+            lngInput = mockLngInput,
+            onLngInput = { mockLngInput = it },
+            accInput = mockAccInput,
+            onAccInput = { mockAccInput = it },
+            locationGranted = locationGranted,
+            onGrantLocation = {
+                mockPermLauncher.launch(
+                    arrayOf(
+                        android.Manifest.permission.ACCESS_FINE_LOCATION,
+                        android.Manifest.permission.ACCESS_COARSE_LOCATION,
+                    ),
+                )
+            },
+            onStart = { runMockStart() },
+            onUpdate = {
+                val t = parseMockInputs() ?: run {
+                    mockStatus = "Invalid coordinates — lat ±90, lng ±180."
+                    return@MockGpsCard
+                }
+                banner = null
+                scope.launch {
+                    val r = com.yaleed.vpnresearch.loc.MockGpsController.update(context, t.first, t.second, t.third)
+                    log.add(0, "[mock gps] update → $r")
+                    mockStatus = r
+                    mockActive = com.yaleed.vpnresearch.loc.MockGpsController.isActive
+                }
+            },
+            onStop = {
+                banner = null
+                scope.launch {
+                    val r = com.yaleed.vpnresearch.loc.MockGpsController.stop(context)
+                    log.add(0, "[mock gps] stop → $r")
+                    mockStatus = r
+                    mockActive = com.yaleed.vpnresearch.loc.MockGpsController.isActive
+                }
+            },
+            onGrant = {
+                banner = null
+                scope.launch {
+                    val r = com.yaleed.vpnresearch.loc.MockGpsController.grant()
+                    pushResult("mock grant", r)
+                    val c = com.yaleed.vpnresearch.loc.MockGpsController.checkGrant()
+                    pushResult("mock check", c)
+                    mockStatus = "appop grant: ${r.text.take(120)}"
+                }
+            },
+            onCheck = {
+                banner = null
+                scope.launch {
+                    val c = com.yaleed.vpnresearch.loc.MockGpsController.checkGrant()
+                    pushResult("mock check", c)
+                    mockStatus = "grant state: ${c.text.take(160)}"
                 }
             },
         )
@@ -665,6 +776,109 @@ private fun SpoofCard(
                     Text("Spoof model")
                 }
                 Button(onClick = onRestoreModel, enabled = resetprop) { Text("Restore (delete)") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MockGpsCard(
+    active: Boolean,
+    status: String?,
+    latInput: String,
+    onLatInput: (String) -> Unit,
+    lngInput: String,
+    onLngInput: (String) -> Unit,
+    accInput: String,
+    onAccInput: (String) -> Unit,
+    locationGranted: Boolean,
+    onGrantLocation: () -> Unit,
+    onStart: () -> Unit,
+    onUpdate: () -> Unit,
+    onStop: () -> Unit,
+    onGrant: () -> Unit,
+    onCheck: () -> Unit,
+) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Place, contentDescription = null, tint = Gold)
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text("Mock GPS", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Spoof your location to custom coordinates — any app reading gps sees the fix.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SlateDim,
+                    )
+                }
+            }
+
+            if (!locationGranted) {
+                Text(
+                    "Location permission denied — grant it so the mock provider can be registered.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = latInput,
+                    onValueChange = onLatInput,
+                    label = { Text("Latitude") },
+                    placeholder = { Text("23.8103", color = SlateDim) },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = lngInput,
+                    onValueChange = onLngInput,
+                    label = { Text("Longitude") },
+                    placeholder = { Text("90.4125", color = SlateDim) },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                )
+            }
+            OutlinedTextField(
+                value = accInput,
+                onValueChange = onAccInput,
+                label = { Text("Accuracy (m)") },
+                placeholder = { Text("10", color = SlateDim) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+
+            status?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = if (active) Success else Gold)
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onStart,
+                    enabled = !active,
+                    colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Color(0xFF1A1200)),
+                ) {
+                    Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Start spoof")
+                }
+                Button(onClick = onUpdate, enabled = active) {
+                    Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Update")
+                }
+                Button(onClick = onStop, enabled = active) {
+                    Icon(Icons.Rounded.Stop, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Stop")
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onGrantLocation, enabled = !locationGranted) { Text("Grant location") }
+                Button(onClick = onGrant) { Text("Grant appop") }
+                Button(onClick = onCheck) { Text("Check") }
             }
         }
     }

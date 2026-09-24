@@ -541,7 +541,11 @@ private fun ResearchScreen() {
         ) {
             Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 CapabilityRow("android_id spoof", "settings provider (shell/root)", ok = true)
-                CapabilityRow("mock location", "setting + mock flag", ok = true)
+                CapabilityRow(
+                    "mock location",
+                    "custom lat/lng → GPS test provider (Root Lab tab)",
+                    ok = rootStateLocal is RootState.Ready || state is ShizukuState.Connected,
+                )
                 CapabilityRow("IMEI / serial", if (rootStateLocal is RootState.Ready) "root read (Root Lab → Device info)" else "root-only", ok = rootStateLocal is RootState.Ready)
                 CapabilityRow("Wi-Fi MAC override", if (rootStateLocal is RootState.Ready) "root read; spoof device-dependent" else "needs CAP_NET_ADMIN", ok = rootStateLocal is RootState.Ready)
                 CapabilityRow("kernel WireGuard", if (rootStateLocal is RootState.Ready) "wg-quick mode (Root Lab)" else "needs root + wg-quick", ok = rootStateLocal is RootState.Ready)
